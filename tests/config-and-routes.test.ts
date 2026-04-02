@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config/env.js';
@@ -57,6 +57,37 @@ describe('config and routes', () => {
       expect.objectContaining({
         ok: false,
         configError: 'Missing env vars',
+      }),
+    );
+  });
+
+  it('rejects manual trigger requests without a valid token', async () => {
+    const response = await buildApp({
+      manualTriggerToken: 'secret-token',
+      triggerDigest: vi.fn(),
+    }).request('/run-now');
+
+    expect(response.status).toBe(401);
+  });
+
+  it('allows manual trigger requests with the correct query token', async () => {
+    const response = await buildApp({
+      manualTriggerToken: 'secret-token',
+      triggerDigest: vi.fn().mockResolvedValue({
+        status: 'skipped',
+        reason: 'already_sent',
+        key: 'candidates-2026:digest:2026-04-02',
+        targetDate: '2026-04-02',
+        roundNames: ['Round 4'],
+      }),
+    }).request('/run-now?token=secret-token');
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({
+        ok: true,
+        status: 'skipped',
+        reason: 'already_sent',
       }),
     );
   });

@@ -14,13 +14,26 @@ interface WorkerBindings {
   UPSTASH_REDIS_REST_URL: string;
   UPSTASH_REDIS_REST_TOKEN: string;
   REDIS_KEY_PREFIX?: string;
+  MANUAL_TRIGGER_TOKEN?: string;
 }
 
 const worker = {
   async fetch(request: Request, env: WorkerBindings): Promise<Response> {
     try {
       const { config } = createDailyDigestRuntime(env, logger);
-      return buildApp({ config }).fetch(request);
+      return buildApp({
+        config,
+        manualTriggerToken: env.MANUAL_TRIGGER_TOKEN,
+        triggerDigest: async () => {
+          const runtime = createDailyDigestRuntime(env, logger);
+
+          try {
+            return await runtime.job.run();
+          } finally {
+            await runtime.idempotency.disconnect();
+          }
+        },
+      }).fetch(request);
     } catch (error) {
       logger.error('Worker fetch configuration failed', {
         error: error instanceof Error ? error.message : String(error),

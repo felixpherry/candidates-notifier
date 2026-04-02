@@ -11,3 +11,4 @@ WOMENS_BROADCAST_URL_OR_ID=your-womens-broadcast-url-or-id
 UPSTASH_REDIS_REST_URL=https://your-instance.upstash.io
 UPSTASH_REDIS_REST_TOKEN=your-upstash-token
 REDIS_KEY_PREFIX=candidates-2026
+# MANUAL_TRIGGER_TOKEN=change-me-for-temporary-browser-testing
