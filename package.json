@@ -6,6 +6,8 @@
   "description": "Scheduled email digests for the 2026 Chess Candidates tournaments.",
   "main": "dist/index.js",
   "scripts": {
+    "cf:deploy": "wrangler deploy",
+    "cf:dev": "wrangler dev",
     "dev": "tsx watch src/index.ts",
     "job:daily": "tsx src/scripts/runDailyDigest.ts",
     "start": "tsx src/index.ts",
@@ -34,6 +36,7 @@
     "@types/node": "^25.5.0",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",
-    "vitest": "^4.1.2"
+    "vitest": "^4.1.2",
+    "wrangler": "^4.41.0"
   }
 }

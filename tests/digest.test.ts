@@ -37,7 +37,7 @@ describe('buildDigestPayload', () => {
       }),
     ]);
 
-    expect(payload.text).toContain('Fabiano 1 - 0 Hikaru');
+    expect(payload.text).toContain('Round 1 | Open | Fabiano 1 - 0 Hikaru');
     expect(payload.text).not.toContain('Divya 1/2 - 1/2 Anna');
     expect(payload.text).not.toContain('All games ended in a draw.');
   });
@@ -57,8 +57,7 @@ describe('buildDigestPayload', () => {
       }),
     ]);
 
-    expect(payload.text).toContain("Women's");
-    expect(payload.text).toContain('All games ended in a draw.');
+    expect(payload.text).toContain("Round 1 | Women's | All games ended in a draw.");
     expect(payload.text).not.toContain('Divya 1/2 - 1/2 Anna');
   });
 });

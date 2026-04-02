@@ -19,29 +19,27 @@ export function buildDigestPayload(
   const firstSection = sections[0];
   const roundName = firstSection?.roundName ?? 'Round';
   const subject = `Candidates 2026 - ${roundName}`;
-  const lines = [roundName, ''];
+  const parts = [roundName];
 
   for (const section of sections) {
-    lines.push(SECTION_TITLES[section.kind]);
+    parts.push(SECTION_TITLES[section.kind]);
 
     const decisiveResults = section.results.filter(
       (result) => result.result !== DRAW_RESULT,
     );
 
     if (decisiveResults.length === 0 && section.results.length > 0) {
-      lines.push(ALL_DRAWS_MESSAGE);
+      parts.push(ALL_DRAWS_MESSAGE);
     }
 
     for (const result of decisiveResults) {
-      lines.push(`| ${result.scoreLine}`);
+      parts.push(result.scoreLine);
     }
-
-    lines.push('');
   }
 
   return {
     subject,
-    text: lines.join('\n').trim(),
+    text: parts.join(' | ').trim(),
     targetDate,
     sections,
   };
