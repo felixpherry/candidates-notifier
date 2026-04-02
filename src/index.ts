@@ -28,7 +28,7 @@ cron.schedule(
 const port = Number.parseInt(process.env.PORT ?? '3000', 10);
 serve(
   {
-    fetch: buildApp(config).fetch,
+    fetch: buildApp({ config }).fetch,
     port,
   },
   () => {

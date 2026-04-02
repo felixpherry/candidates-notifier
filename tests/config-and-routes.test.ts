@@ -36,13 +36,27 @@ describe('config and routes', () => {
       UPSTASH_REDIS_REST_URL: 'https://example.upstash.io',
       UPSTASH_REDIS_REST_TOKEN: 'token',
     });
-    const response = await buildApp(config).request('/health');
+    const response = await buildApp({ config }).request('/health');
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual(
       expect.objectContaining({
         ok: true,
         service: 'candidates-notifier',
+      }),
+    );
+  });
+
+  it('returns config errors without crashing health checks', async () => {
+    const response = await buildApp({
+      configError: 'Missing env vars',
+    }).request('/health');
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({
+        ok: false,
+        configError: 'Missing env vars',
       }),
     );
   });

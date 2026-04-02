@@ -18,8 +18,17 @@ interface WorkerBindings {
 
 const worker = {
   async fetch(request: Request, env: WorkerBindings): Promise<Response> {
-    const { config } = createDailyDigestRuntime(env, logger);
-    return buildApp(config).fetch(request);
+    try {
+      const { config } = createDailyDigestRuntime(env, logger);
+      return buildApp({ config }).fetch(request);
+    } catch (error) {
+      logger.error('Worker fetch configuration failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return buildApp({
+        configError: error instanceof Error ? error.message : String(error),
+      }).fetch(request);
+    }
   },
 
   async scheduled(
