@@ -65,6 +65,23 @@ describe('planLiveNotification', () => {
     expect(plan.message?.subject).toContain('\u265f Fabiano \u2191 vs Hikaru');
   });
 
+  it('uses a down arrow when black is winning or better', () => {
+    const plan = planLiveNotification(
+      createSnapshot(),
+      -130,
+      createState({
+        lastEval: -20,
+        lastState: 'equal',
+        pendingState: 'black_winning',
+        consecutiveSameState: 1,
+      }),
+      new Date('2026-04-03T01:10:00.000Z'),
+    );
+
+    expect(plan.decision.shouldNotify).toBe(true);
+    expect(plan.message?.subject).toContain('\u265f Fabiano \u2193 vs Hikaru');
+  });
+
   it('suppresses jitter when the state is stable but the eval did not move enough', () => {
     const plan = planLiveNotification(
       createSnapshot(),

@@ -285,7 +285,7 @@ function buildNotificationMessage(
   trend: LiveEvalTrend,
   evalCp: number,
 ): LiveNotificationMessage {
-  const symbol = trendToSymbol(trend);
+  const symbol = stateToSymbol(state);
   const roundLabel =
     snapshot.roundName.replace(/^Round\s+/i, '') || snapshot.roundName;
 
@@ -311,14 +311,16 @@ function trendFromDelta(delta: number): LiveEvalTrend {
   return 'equal';
 }
 
-function trendToSymbol(trend: LiveEvalTrend): string {
-  switch (trend) {
-    case 'improving':
+function stateToSymbol(state: LiveEvalBucket): string {
+  switch (state) {
+    case 'white_winning':
+    case 'white_better':
       return '\u2191';
-    case 'worsening':
-      return '\u2193';
     case 'equal':
       return '\u2194';
+    case 'black_better':
+    case 'black_winning':
+      return '\u2193';
   }
 }
 
