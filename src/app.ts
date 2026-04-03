@@ -40,16 +40,26 @@ export function buildApp(options: AppOptions): Hono {
       );
     }
 
-    const result = await options.triggerDigest();
+    try {
+      const result = await options.triggerDigest();
 
-    return c.json({
-      ok: true,
-      status: result.status,
-      reason: result.reason,
-      key: result.key,
-      targetDate: result.targetDate,
-      roundNames: result.roundNames,
-    });
+      return c.json({
+        ok: true,
+        status: result.status,
+        reason: result.reason,
+        key: result.key,
+        targetDate: result.targetDate,
+        roundNames: result.roundNames,
+      });
+    } catch (error) {
+      return c.json(
+        {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        500,
+      );
+    }
   });
 
   return app;

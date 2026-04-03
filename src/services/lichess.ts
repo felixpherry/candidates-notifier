@@ -25,7 +25,8 @@ export class LichessService {
   constructor(
     private readonly apiBase: string,
     private readonly logger: Logger,
-    private readonly fetchImpl: typeof fetch = fetch,
+    private readonly fetchImpl: typeof fetch = (input, init) =>
+      globalThis.fetch(input, init),
   ) {}
 
   async selectRoundForDate(

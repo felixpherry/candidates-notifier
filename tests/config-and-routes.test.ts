@@ -91,4 +91,19 @@ describe('config and routes', () => {
       }),
     );
   });
+
+  it('returns trigger errors as json for manual runs', async () => {
+    const response = await buildApp({
+      manualTriggerToken: 'secret-token',
+      triggerDigest: vi.fn().mockRejectedValue(new Error('Boom')),
+    }).request('/run-now?token=secret-token');
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({
+        ok: false,
+        error: 'Boom',
+      }),
+    );
+  });
 });
