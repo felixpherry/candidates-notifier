@@ -2,6 +2,15 @@ name = "candidates-notifier"
 main = "src/worker.ts"
 compatibility_date = "2026-04-02"
 compatibility_flags = ["nodejs_compat"]
+keep_vars = true
+
+[vars]
+LICHESS_API_BASE = "https://lichess.org/api"
+CRON_EXPRESSION = "0 20 * * *"
+APP_TIMEZONE = "Asia/Jakarta"
+OPEN_BROADCAST_URL_OR_ID = "BLA70Vds"
+WOMENS_BROADCAST_URL_OR_ID = "xj4qM8Nw"
+REDIS_KEY_PREFIX = "candidates-2026"
 
 [triggers]
 crons = ["0 20 * * *"]
