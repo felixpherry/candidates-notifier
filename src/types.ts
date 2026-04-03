@@ -1,4 +1,12 @@
 export type TournamentKind = 'open' | 'womens';
+export type LiveEvalBucket =
+  | 'white_winning'
+  | 'white_better'
+  | 'equal'
+  | 'black_better'
+  | 'black_winning';
+
+export type LiveEvalTrend = 'improving' | 'worsening' | 'equal';
 
 export interface AppConfig {
   resendApiKey: string;
@@ -12,6 +20,21 @@ export interface AppConfig {
   upstashRedisRestUrl: string;
   upstashRedisRestToken: string;
   redisKeyPrefix: string;
+}
+
+export interface WorkerBindings {
+  RESEND_API_KEY: string;
+  EMAIL_TO: string;
+  EMAIL_FROM: string;
+  LICHESS_API_BASE?: string;
+  CRON_EXPRESSION?: string;
+  APP_TIMEZONE?: string;
+  OPEN_BROADCAST_URL_OR_ID: string;
+  WOMENS_BROADCAST_URL_OR_ID: string;
+  UPSTASH_REDIS_REST_URL: string;
+  UPSTASH_REDIS_REST_TOKEN: string;
+  REDIS_KEY_PREFIX?: string;
+  MANUAL_TRIGGER_TOKEN?: string;
 }
 
 export interface RoundSummary {
@@ -66,4 +89,53 @@ export interface JobRunResult {
   key: string;
   targetDate: string;
   roundNames: string[];
+}
+
+export interface LiveGameState {
+  white: string;
+  black: string;
+  lastEval: number | null;
+  lastState: LiveEvalBucket | null;
+  pendingState: LiveEvalBucket | null;
+  consecutiveSameState: number;
+  lastNotifiedAt: string | null;
+  notificationsLastHour: number;
+  lastMoveNumber: number;
+  finished: boolean;
+}
+
+export interface LiveGameSnapshot {
+  gameId: string;
+  white: string;
+  black: string;
+  result: string;
+  moveNumber: number;
+  fen: string;
+  roundName: string;
+  section: string;
+}
+
+export interface LiveNotificationMessage {
+  subject: string;
+  text: string;
+}
+
+export interface LiveNotificationDecision {
+  shouldNotify: boolean;
+  reason:
+    | 'first_seen'
+    | 'finished'
+    | 'opening_noise'
+    | 'unchanged_move'
+    | 'eval_missing'
+    | 'unstable'
+    | 'no_signal'
+    | 'cooldown'
+    | 'rate_limited'
+    | 'notify';
+  state: LiveEvalBucket;
+  trend: LiveEvalTrend;
+  evalText: string;
+  evalDelta: number;
+  sameStateCount: number;
 }

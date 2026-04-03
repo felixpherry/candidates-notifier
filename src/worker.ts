@@ -1,21 +1,8 @@
 import { buildApp } from './app.js';
+import { liveMonitorJob } from './jobs/liveMonitor.js';
 import { createDailyDigestRuntime } from './runtime/createDailyDigestRuntime.js';
 import { logger } from './utils/logger.js';
-
-interface WorkerBindings {
-  RESEND_API_KEY: string;
-  EMAIL_TO: string;
-  EMAIL_FROM: string;
-  LICHESS_API_BASE?: string;
-  CRON_EXPRESSION?: string;
-  APP_TIMEZONE?: string;
-  OPEN_BROADCAST_URL_OR_ID: string;
-  WOMENS_BROADCAST_URL_OR_ID: string;
-  UPSTASH_REDIS_REST_URL: string;
-  UPSTASH_REDIS_REST_TOKEN: string;
-  REDIS_KEY_PREFIX?: string;
-  MANUAL_TRIGGER_TOKEN?: string;
-}
+import type { WorkerBindings } from './types.js';
 
 const worker = {
   async fetch(request: Request, env: WorkerBindings): Promise<Response> {
@@ -44,10 +31,18 @@ const worker = {
     }
   },
 
-  async scheduled(
-    _controller: unknown,
-    env: WorkerBindings,
-  ): Promise<void> {
+  async scheduled(event: { cron: string }, env: WorkerBindings): Promise<void> {
+    if (event.cron === '*/5 1-19 * * *') {
+      try {
+        await liveMonitorJob(env, logger);
+      } catch (error) {
+        logger.error('Scheduled live monitor job failed', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+      return;
+    }
+
     const runtime = createDailyDigestRuntime(env, logger);
 
     try {

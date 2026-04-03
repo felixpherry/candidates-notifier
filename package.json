@@ -10,6 +10,7 @@
     "cf:dev": "wrangler dev",
     "dev": "tsx watch src/index.ts",
     "job:daily": "tsx src/scripts/runDailyDigest.ts",
+    "email:test:live": "tsx src/scripts/sendLiveEvalTestEmail.ts",
     "start": "tsx src/index.ts",
     "email:test:round1": "tsx src/scripts/sendRound1TestEmail.ts",
     "test": "vitest run",
@@ -26,6 +27,7 @@
   "dependencies": {
     "@hono/node-server": "^1.19.12",
     "@upstash/redis": "^1.35.6",
+    "chess.js": "^1.4.0",
     "dotenv": "^17.4.0",
     "hono": "^4.12.10",
     "node-cron": "^4.2.1",

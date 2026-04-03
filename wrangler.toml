@@ -13,4 +13,4 @@ WOMENS_BROADCAST_URL_OR_ID = "xj4qM8Nw"
 REDIS_KEY_PREFIX = "candidates-2026"
 
 [triggers]
-crons = ["0 20 * * *"]
+crons = ["0 20 * * *", "*/5 1-19 * * *"]
