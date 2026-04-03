@@ -1,8 +1,7 @@
-import { Resend } from 'resend';
-
 import { loadConfig } from '../config/env.js';
 import { RedisLiveStateStore } from '../services/gameState.js';
 import { LichessService } from '../services/lichess.js';
+import { sendResendEmail } from '../services/mailer.js';
 import { markNotificationSent, planLiveNotification } from '../services/notifier.js';
 import {
   extractGameId,
@@ -45,7 +44,6 @@ export async function liveMonitorJob(
     };
   }
 
-  const resend = new Resend(config.resendApiKey);
   const lichess = new LichessService(config.lichessApiBase, logger, undefined, stateStore);
   const rounds: LiveMonitorRoundResult[] = [];
 
@@ -54,7 +52,6 @@ export async function liveMonitorJob(
       return await runManualLiveCheck({
         config,
         logger,
-        resend,
         stateStore,
         lichess,
         options,
@@ -101,7 +98,6 @@ export async function liveMonitorJob(
           section: SECTION_LABELS[kind],
           config,
           logger,
-          resend,
           stateStore,
           lichess,
         });
@@ -132,12 +128,11 @@ export async function liveMonitorJob(
 async function runManualLiveCheck(options: {
   config: ReturnType<typeof loadConfig>;
   logger: Logger;
-  resend: Resend;
   stateStore: RedisLiveStateStore;
   lichess: LichessService;
   options: LiveMonitorTriggerOptions;
 }): Promise<LiveMonitorJobResult> {
-  const { config, logger, resend, lichess, options: triggerOptions } = options;
+  const { config, logger, lichess, options: triggerOptions } = options;
   const roundId = triggerOptions.roundId;
   const white = triggerOptions.white;
   const black = triggerOptions.black;
@@ -210,7 +205,8 @@ async function runManualLiveCheck(options: {
     };
   }
 
-  await resend.emails.send({
+  await sendResendEmail({
+    apiKey: config.resendApiKey,
     from: config.emailFrom,
     to: config.emailTo,
     subject: plan.message.subject,
@@ -243,11 +239,10 @@ async function processGames(options: {
   section: string;
   config: ReturnType<typeof loadConfig>;
   logger: Logger;
-  resend: Resend;
   stateStore: RedisLiveStateStore;
   lichess: LichessService;
 }): Promise<{ notificationsSent: number }> {
-  const { games, config, logger, resend, stateStore, lichess, roundName, section } =
+  const { games, config, logger, stateStore, lichess, roundName, section } =
     options;
   let notificationsSent = 0;
 
@@ -349,7 +344,8 @@ async function processGames(options: {
     }
 
     try {
-      await resend.emails.send({
+      await sendResendEmail({
+        apiKey: config.resendApiKey,
         from: config.emailFrom,
         to: config.emailTo,
         subject: plan.message.subject,
