@@ -191,6 +191,16 @@ async function runManualLiveCheck(options: {
   const previousState = buildSyntheticState(snapshot, evalCp, currentState);
   const plan = planLiveNotification(snapshot, evalCp, previousState, new Date());
   if (!plan.decision.shouldNotify || !plan.message) {
+    logger.info('Live notification skipped', {
+      roundId: selection.round.id,
+      gameId: snapshot.gameId,
+      reason: plan.decision.reason,
+      state: plan.decision.state,
+      trend: plan.decision.trend,
+      eval: plan.decision.evalText,
+      evalDelta: plan.decision.evalDelta,
+      sameStateCount: plan.decision.sameStateCount,
+    });
     return {
       status: 'ok',
       rounds: [
@@ -332,6 +342,16 @@ async function processGames(options: {
     );
 
     if (!plan.decision.shouldNotify || !plan.message) {
+      logger.info('Live notification skipped', {
+        gameId: item.game.gameId,
+        roundName,
+        reason: plan.decision.reason,
+        state: plan.decision.state,
+        trend: plan.decision.trend,
+        eval: plan.decision.evalText,
+        evalDelta: plan.decision.evalDelta,
+        sameStateCount: plan.decision.sameStateCount,
+      });
       try {
         await stateStore.setState(item.game.gameId, plan.nextState);
       } catch (error) {

@@ -35,6 +35,11 @@ const worker = {
   },
 
   async scheduled(event: { cron: string }, env: WorkerBindings): Promise<void> {
+    logger.info('Scheduled trigger received', {
+      cron: event.cron,
+      mode: event.cron === '*/5 1-19 * * *' ? 'live' : 'digest',
+    });
+
     if (event.cron === '*/5 1-19 * * *') {
       try {
         await liveMonitorJob(env, logger);
