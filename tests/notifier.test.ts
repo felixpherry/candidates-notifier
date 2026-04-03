@@ -62,7 +62,7 @@ describe('planLiveNotification', () => {
 
     expect(plan.decision.shouldNotify).toBe(true);
     expect(plan.decision.reason).toBe('notify');
-    expect(plan.message?.subject).toContain('\u266f Fabiano \u2191 vs Hikaru');
+    expect(plan.message?.subject).toContain('\u265f Fabiano \u2191 vs Hikaru');
   });
 
   it('suppresses jitter when the state is stable but the eval did not move enough', () => {

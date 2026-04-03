@@ -106,4 +106,48 @@ describe('config and routes', () => {
       }),
     );
   });
+
+  it('allows manual live monitor requests with the correct query token', async () => {
+    const response = await buildApp({
+      manualTriggerToken: 'secret-token',
+      triggerLiveMonitor: vi.fn().mockResolvedValue({
+        status: 'ok',
+        rounds: [
+          {
+            kind: 'womens',
+            roundId: 'MDv2BlCp',
+            roundName: 'Round 4',
+            gamesSeen: 7,
+            notificationsSent: 1,
+          },
+        ],
+      }),
+    }).request('/run-live-now?token=secret-token');
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({
+        ok: true,
+        status: 'ok',
+        rounds: expect.arrayContaining([
+          expect.objectContaining({
+            kind: 'womens',
+            roundId: 'MDv2BlCp',
+          }),
+        ]),
+      }),
+    );
+  });
+
+  it('returns an error when live manual trigger is not enabled', async () => {
+    const response = await buildApp({}).request('/run-live-now');
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({
+        ok: false,
+        error: 'Live manual trigger is not enabled.',
+      }),
+    );
+  });
 });

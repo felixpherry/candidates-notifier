@@ -139,3 +139,16 @@ export interface LiveNotificationDecision {
   evalDelta: number;
   sameStateCount: number;
 }
+
+export interface LiveMonitorRoundResult {
+  kind: TournamentKind;
+  roundId: string;
+  roundName: string;
+  gamesSeen: number;
+  notificationsSent: number;
+}
+
+export interface LiveMonitorJobResult {
+  status: 'ok' | 'skipped';
+  rounds: LiveMonitorRoundResult[];
+}

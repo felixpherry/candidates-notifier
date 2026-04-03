@@ -3,12 +3,14 @@ import { Hono } from 'hono';
 import { buildHealthRoutes } from './routes/health.js';
 import type { AppConfig } from './types.js';
 import type { JobRunResult } from './types.js';
+import type { LiveMonitorJobResult } from './types.js';
 
 interface AppOptions {
   config?: AppConfig;
   configError?: string;
   manualTriggerToken?: string;
   triggerDigest?: () => Promise<JobRunResult>;
+  triggerLiveMonitor?: () => Promise<LiveMonitorJobResult>;
 }
 
 export function buildApp(options: AppOptions): Hono {
@@ -50,6 +52,50 @@ export function buildApp(options: AppOptions): Hono {
         key: result.key,
         targetDate: result.targetDate,
         roundNames: result.roundNames,
+      });
+    } catch (error) {
+      return c.json(
+        {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        500,
+      );
+    }
+  });
+
+  app.on(['GET', 'POST'], '/run-live-now', async (c) => {
+    if (!options.manualTriggerToken || !options.triggerLiveMonitor) {
+      return c.json(
+        {
+          ok: false,
+          error: 'Live manual trigger is not enabled.',
+        },
+        404,
+      );
+    }
+
+    const bearerToken = c.req.header('authorization')?.replace(/^Bearer\s+/i, '');
+    const queryToken = c.req.query('token');
+    const providedToken = bearerToken ?? queryToken;
+
+    if (providedToken !== options.manualTriggerToken) {
+      return c.json(
+        {
+          ok: false,
+          error: 'Unauthorized.',
+        },
+        401,
+      );
+    }
+
+    try {
+      const result = await options.triggerLiveMonitor();
+
+      return c.json({
+        ok: true,
+        status: result.status,
+        rounds: result.rounds,
       });
     } catch (error) {
       return c.json(

@@ -6,7 +6,13 @@ import { LichessService } from '../services/lichess.js';
 import { markNotificationSent, planLiveNotification } from '../services/notifier.js';
 import { parseLiveGames } from '../utils/pgnLive.js';
 import type { Logger } from '../utils/logger.js';
-import type { LiveGameSnapshot, TournamentKind, WorkerBindings } from '../types.js';
+import type {
+  LiveGameSnapshot,
+  LiveMonitorJobResult,
+  LiveMonitorRoundResult,
+  TournamentKind,
+  WorkerBindings,
+} from '../types.js';
 
 const SECTION_LABELS: Record<TournamentKind, string> = {
   open: 'Open',
@@ -16,14 +22,17 @@ const SECTION_LABELS: Record<TournamentKind, string> = {
 export async function liveMonitorJob(
   env: WorkerBindings,
   logger: Logger,
-): Promise<void> {
+): Promise<LiveMonitorJobResult> {
   const config = loadConfig(env as unknown as NodeJS.ProcessEnv);
   const stateStore = new RedisLiveStateStore(env);
   const lockToken = await stateStore.acquireLock();
 
   if (!lockToken) {
     logger.info('Live monitor skipped because another run is in progress');
-    return;
+    return {
+      status: 'skipped',
+      rounds: [],
+    };
   }
 
   const resend = new Resend(config.resendApiKey);
@@ -33,6 +42,7 @@ export async function liveMonitorJob(
     globalThis.fetch,
     stateStore,
   );
+  const rounds: LiveMonitorRoundResult[] = [];
 
   try {
     const localToday = new Intl.DateTimeFormat('en-CA', {
@@ -69,7 +79,7 @@ export async function liveMonitorJob(
           gameCount: games.length,
         });
 
-        await processGames({
+        const result = await processGames({
           games,
           roundName: selection.round.name,
           section: SECTION_LABELS[kind],
@@ -78,6 +88,13 @@ export async function liveMonitorJob(
           resend,
           stateStore,
           lichess,
+        });
+        rounds.push({
+          kind,
+          roundId: selection.round.id,
+          roundName: selection.round.name,
+          gamesSeen: games.length,
+          notificationsSent: result.notificationsSent,
         });
       } catch (error) {
         logger.warn('Live round fetch failed; skipping cycle', {
@@ -89,6 +106,11 @@ export async function liveMonitorJob(
   } finally {
     await stateStore.releaseLock(lockToken);
   }
+
+  return {
+    status: 'ok',
+    rounds,
+  };
 }
 
 async function processGames(options: {
@@ -100,9 +122,10 @@ async function processGames(options: {
   resend: Resend;
   stateStore: RedisLiveStateStore;
   lichess: LichessService;
-}): Promise<void> {
+}): Promise<{ notificationsSent: number }> {
   const { games, config, logger, resend, stateStore, lichess, roundName, section } =
     options;
+  let notificationsSent = 0;
 
   const candidates = await Promise.all(
     games.map(async (game) => {
@@ -212,6 +235,7 @@ async function processGames(options: {
         item.game.gameId,
         markNotificationSent(plan.nextState, now),
       );
+      notificationsSent += 1;
       logger.info('Live notification sent', {
         gameId: item.game.gameId,
         state: plan.decision.state,
@@ -233,6 +257,8 @@ async function processGames(options: {
       }
     }
   }
+
+  return { notificationsSent };
 }
 
 async function mapWithConcurrency<T, R>(

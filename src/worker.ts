@@ -20,6 +20,9 @@ const worker = {
             await runtime.idempotency.disconnect();
           }
         },
+        triggerLiveMonitor: async () => {
+          return liveMonitorJob(env, logger);
+        },
       }).fetch(request);
     } catch (error) {
       logger.error('Worker fetch configuration failed', {
