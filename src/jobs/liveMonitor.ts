@@ -46,12 +46,7 @@ export async function liveMonitorJob(
   }
 
   const resend = new Resend(config.resendApiKey);
-  const lichess = new LichessService(
-    config.lichessApiBase,
-    logger,
-    globalThis.fetch,
-    stateStore,
-  );
+  const lichess = new LichessService(config.lichessApiBase, logger, undefined, stateStore);
   const rounds: LiveMonitorRoundResult[] = [];
 
   try {
