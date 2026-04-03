@@ -4,12 +4,21 @@ import { loadConfig } from '../config/env.js';
 import { RedisLiveStateStore } from '../services/gameState.js';
 import { LichessService } from '../services/lichess.js';
 import { markNotificationSent, planLiveNotification } from '../services/notifier.js';
-import { parseLiveGames } from '../utils/pgnLive.js';
+import {
+  extractGameId,
+  fenAtMoveNumber,
+  findGamePgnByPlayers,
+  parseLiveGames,
+} from '../utils/pgnLive.js';
+import { bucketEval } from '../utils/evalBucket.js';
 import type { Logger } from '../utils/logger.js';
 import type {
   LiveGameSnapshot,
+  LiveEvalBucket,
+  LiveGameState,
   LiveMonitorJobResult,
   LiveMonitorRoundResult,
+  LiveMonitorTriggerOptions,
   TournamentKind,
   WorkerBindings,
 } from '../types.js';
@@ -22,6 +31,7 @@ const SECTION_LABELS: Record<TournamentKind, string> = {
 export async function liveMonitorJob(
   env: WorkerBindings,
   logger: Logger,
+  options: LiveMonitorTriggerOptions = {},
 ): Promise<LiveMonitorJobResult> {
   const config = loadConfig(env as unknown as NodeJS.ProcessEnv);
   const stateStore = new RedisLiveStateStore(env);
@@ -45,6 +55,17 @@ export async function liveMonitorJob(
   const rounds: LiveMonitorRoundResult[] = [];
 
   try {
+    if (options.roundId) {
+      return await runManualLiveCheck({
+        config,
+        logger,
+        resend,
+        stateStore,
+        lichess,
+        options,
+      });
+    }
+
     const localToday = new Intl.DateTimeFormat('en-CA', {
       timeZone: config.appTimezone,
       year: 'numeric',
@@ -110,6 +131,114 @@ export async function liveMonitorJob(
   return {
     status: 'ok',
     rounds,
+  };
+}
+
+async function runManualLiveCheck(options: {
+  config: ReturnType<typeof loadConfig>;
+  logger: Logger;
+  resend: Resend;
+  stateStore: RedisLiveStateStore;
+  lichess: LichessService;
+  options: LiveMonitorTriggerOptions;
+}): Promise<LiveMonitorJobResult> {
+  const { config, logger, resend, lichess, options: triggerOptions } = options;
+  const roundId = triggerOptions.roundId;
+  const white = triggerOptions.white;
+  const black = triggerOptions.black;
+  const moveNumber = triggerOptions.moveNumber;
+
+  if (!roundId || !white || !black || !moveNumber) {
+    throw new Error(
+      'Manual live monitor requires roundId, white, black, and moveNumber.',
+    );
+  }
+
+  const selections = await Promise.all([
+    lichess.selectRoundById('open', config.openBroadcast, roundId),
+    lichess.selectRoundById('womens', config.womensBroadcast, roundId),
+  ]);
+  const selection = selections.find((item) => item.round) ?? null;
+  if (!selection?.round) {
+    throw new Error(`Could not find round ${roundId} in either broadcast.`);
+  }
+
+  const pgn = await lichess.fetchRoundPgn(selection.round.id);
+  const game = findGamePgnByPlayers(pgn, white, black);
+  if (!game) {
+    throw new Error(`Could not find ${white} vs ${black} in round ${roundId}.`);
+  }
+
+  const fen = fenAtMoveNumber(game.rawGame, moveNumber);
+  const evalCp = await lichess.fetchCloudEval(fen);
+  if (evalCp === null) {
+    return {
+      status: 'skipped',
+      rounds: [
+        {
+          kind: selection.kind,
+          roundId: selection.round.id,
+          roundName: selection.round.name,
+          gamesSeen: 1,
+          notificationsSent: 0,
+        },
+      ],
+    };
+  }
+
+  const snapshot: LiveGameSnapshot = {
+    gameId: extractGameId(game.headers.Site) ?? `${roundId}:${white}:${black}`,
+    white: toFirstName(game.headers.White) ?? white,
+    black: toFirstName(game.headers.Black) ?? black,
+    result: '*',
+    moveNumber,
+    fen,
+    roundName: selection.round.name,
+    section: SECTION_LABELS[selection.kind],
+  };
+
+  const currentState = bucketEval(evalCp);
+  const previousState = buildSyntheticState(snapshot, evalCp, currentState);
+  const plan = planLiveNotification(snapshot, evalCp, previousState, new Date());
+  if (!plan.decision.shouldNotify || !plan.message) {
+    return {
+      status: 'ok',
+      rounds: [
+        {
+          kind: selection.kind,
+          roundId: selection.round.id,
+          roundName: selection.round.name,
+          gamesSeen: 1,
+          notificationsSent: 0,
+        },
+      ],
+    };
+  }
+
+  await resend.emails.send({
+    from: config.emailFrom,
+    to: config.emailTo,
+    subject: plan.message.subject,
+    text: plan.message.text,
+  });
+
+  logger.info('Manual live notification sent', {
+    roundId: selection.round.id,
+    gameId: snapshot.gameId,
+    eval: plan.decision.evalText,
+  });
+
+  return {
+    status: 'ok',
+    rounds: [
+      {
+        kind: selection.kind,
+        roundId: selection.round.id,
+        roundName: selection.round.name,
+        gamesSeen: 1,
+        notificationsSent: 1,
+      },
+    ],
   };
 }
 
@@ -259,6 +388,44 @@ async function processGames(options: {
   }
 
   return { notificationsSent };
+}
+
+function buildSyntheticState(
+  snapshot: LiveGameSnapshot,
+  evalCp: number,
+  currentState: LiveEvalBucket,
+): LiveGameState {
+  return {
+    white: snapshot.white,
+    black: snapshot.black,
+    lastEval: evalCp - 150,
+    lastState: currentState,
+    pendingState: currentState,
+    consecutiveSameState: 1,
+    lastNotifiedAt: null,
+    notificationsLastHour: 0,
+    lastMoveNumber: Math.max(1, snapshot.moveNumber - 1),
+    finished: false,
+  };
+}
+
+function toFirstName(name?: string): string {
+  if (!name) {
+    return 'Unknown';
+  }
+
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return 'Unknown';
+  }
+
+  if (trimmed.includes(',')) {
+    const [, givenNames = ''] = trimmed.split(',', 2);
+    const firstGivenName = givenNames.trim().split(/\s+/)[0];
+    return firstGivenName || trimmed;
+  }
+
+  return trimmed.split(/\s+/)[0] ?? trimmed;
 }
 
 async function mapWithConcurrency<T, R>(

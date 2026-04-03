@@ -77,6 +77,34 @@ export class LichessService {
     };
   }
 
+  async selectRoundById(
+    kind: TournamentKind,
+    broadcastRef: string,
+    roundId: string,
+  ): Promise<TournamentRoundSelection> {
+    const broadcastId = extractBroadcastId(broadcastRef);
+    const broadcast = await this.fetchBroadcast(broadcastId);
+    const round = broadcast.rounds.find((item) => item.id === roundId) ?? null;
+
+    if (round) {
+      await this.roundCache?.setRoundId(kind, round.id);
+    }
+
+    this.logger.info('Selected round by id', {
+      kind,
+      broadcastId,
+      roundId: round?.id ?? null,
+      roundName: round?.name ?? null,
+    });
+
+    return {
+      kind,
+      tournamentName: broadcast.tour.name,
+      broadcastId,
+      round,
+    };
+  }
+
   async fetchRoundPgn(roundId: string): Promise<string> {
     const response = await this.request(`/broadcast/round/${roundId}.pgn`, {
       headers: {

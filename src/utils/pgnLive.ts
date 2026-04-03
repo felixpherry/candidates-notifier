@@ -65,6 +65,75 @@ export function extractGameId(site?: string): string | null {
   return parts.at(-1) ?? null;
 }
 
+export function findGamePgnByPlayers(
+  pgn: string,
+  white: string,
+  black: string,
+): { rawGame: string; headers: Record<string, string> } | null {
+  const expectedWhite = normalizeName(white);
+  const expectedBlack = normalizeName(black);
+
+  for (const game of splitGames(pgn)) {
+    const headers = parseHeaders(game);
+    const actualWhite = normalizeName(headers.White);
+    const actualBlack = normalizeName(headers.Black);
+    if (
+      (actualWhite === expectedWhite && actualBlack === expectedBlack) ||
+      (actualWhite === expectedBlack && actualBlack === expectedWhite)
+    ) {
+      return { rawGame: game, headers };
+    }
+  }
+
+  return null;
+}
+
+export function fenAtMoveNumber(pgn: string, moveNumber: number): string {
+  const chess = new Chess();
+  chess.loadPgn(stripComments(pgn), { strict: false, newlineChar: '\n' });
+
+  const history = chess.history({ verbose: true });
+  const targetPlies = moveNumber * 2 - 1;
+  const replay = new Chess();
+
+  for (const move of history.slice(0, targetPlies)) {
+    const applied = replay.move({
+      from: move.from,
+      to: move.to,
+      promotion: move.promotion,
+    });
+
+    if (!applied) {
+      throw new Error(`Could not replay move ${move.san}.`);
+    }
+  }
+
+  return replay.fen();
+}
+
+function parseHeaders(game: string): Record<string, string> {
+  const headers: Record<string, string> = {};
+  const matches = game.matchAll(/^\[(\w+)\s+"(.*)"\]$/gm);
+
+  for (const match of matches) {
+    headers[match[1]] = match[2];
+  }
+
+  return headers;
+}
+
+function stripComments(pgn: string): string {
+  return pgn.replace(/\{[^}]*\}/g, '');
+}
+
+function normalizeName(name?: string): string {
+  return (name ?? '')
+    .toLowerCase()
+    .replace(/,/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function toFirstName(name?: string): string {
   if (!name) {
     return 'Unknown';

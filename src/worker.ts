@@ -20,8 +20,8 @@ const worker = {
             await runtime.idempotency.disconnect();
           }
         },
-        triggerLiveMonitor: async () => {
-          return liveMonitorJob(env, logger);
+        triggerLiveMonitor: async (options) => {
+          return liveMonitorJob(env, logger, options);
         },
       }).fetch(request);
     } catch (error) {

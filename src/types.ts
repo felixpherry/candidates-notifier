@@ -152,3 +152,10 @@ export interface LiveMonitorJobResult {
   status: 'ok' | 'skipped';
   rounds: LiveMonitorRoundResult[];
 }
+
+export interface LiveMonitorTriggerOptions {
+  roundId?: string;
+  white?: string;
+  black?: string;
+  moveNumber?: number;
+}

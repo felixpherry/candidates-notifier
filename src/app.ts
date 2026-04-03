@@ -4,13 +4,16 @@ import { buildHealthRoutes } from './routes/health.js';
 import type { AppConfig } from './types.js';
 import type { JobRunResult } from './types.js';
 import type { LiveMonitorJobResult } from './types.js';
+import type { LiveMonitorTriggerOptions } from './types.js';
 
 interface AppOptions {
   config?: AppConfig;
   configError?: string;
   manualTriggerToken?: string;
   triggerDigest?: () => Promise<JobRunResult>;
-  triggerLiveMonitor?: () => Promise<LiveMonitorJobResult>;
+  triggerLiveMonitor?: (
+    options?: LiveMonitorTriggerOptions,
+  ) => Promise<LiveMonitorJobResult>;
 }
 
 export function buildApp(options: AppOptions): Hono {
@@ -90,7 +93,25 @@ export function buildApp(options: AppOptions): Hono {
     }
 
     try {
-      const result = await options.triggerLiveMonitor();
+      const roundId = c.req.query('roundId')?.trim();
+      const white = c.req.query('white')?.trim();
+      const black = c.req.query('black')?.trim();
+      const moveNumberRaw = c.req.query('moveNumber')?.trim();
+      const moveNumber = moveNumberRaw
+        ? Number.parseInt(moveNumberRaw, 10)
+        : undefined;
+      const triggerOptions =
+        roundId || white || black || moveNumberRaw
+          ? {
+              roundId: roundId || undefined,
+              white: white || undefined,
+              black: black || undefined,
+              moveNumber:
+                moveNumberRaw && Number.isFinite(moveNumber) ? moveNumber : undefined,
+            }
+          : undefined;
+
+      const result = await options.triggerLiveMonitor(triggerOptions);
 
       return c.json({
         ok: true,
