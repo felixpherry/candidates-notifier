@@ -315,7 +315,19 @@ async function processGames(options: {
     evalCandidates,
     3,
     async ({ game, previousState }) => {
-      const evalCp = await lichess.fetchCloudEval(game.fen);
+      let evalCp: number | null;
+
+      try {
+        evalCp = await lichess.fetchCloudEval(game.fen);
+      } catch (error) {
+        logger.warn('Cloud eval fetch failed; skipping game', {
+          gameId: game.gameId,
+          roundName,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return null;
+      }
+
       if (evalCp === null) {
         return null;
       }
